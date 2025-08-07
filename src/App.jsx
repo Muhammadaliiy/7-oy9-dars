@@ -1,35 +1,58 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import {
+  Navigate,
+  createBrowserRouter,
+  RouterProvider,
+} from "react-router-dom";
+import { useSelector } from "react-redux";
+import MainLayout from "./Layout/MainLayout";
+import ProtectedRoutes from "./components/ProtectedRoutes";
+import { useDispatch } from "react-redux";
+import { Home, Signup, Login, Profile, SingleImage } from "./pages";
+
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase/config";
+import { Login as loginAction, authReady } from "./app/features/userSlice";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const { user, isAuthReady } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
+  const routes = createBrowserRouter([
+    {
+      path: "/",
+      element: (
+        <ProtectedRoutes user={user}>
+          <MainLayout />
+        </ProtectedRoutes>
+      ),
+      children: [
+        {
+          index: true,
+          element: <Home />,
+        },
+        {
+          path: "/Profile",
+          element: <Profile />,
+        },
+        { path: "/SingleImage/:id", element: <SingleImage /> }, //
+      ],
+    },
+    {
+      path: "/Login",
+      element: user ? <Navigate to="/" /> : <Login />,
+    },
+    {
+      path: "/Signup",
+      element: user ? <Navigate to="/" /> : <Signup />,
+    },
+  ]);
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+  onAuthStateChanged(auth, (user) => {
+    if (user?.displayName && user?.photoURL) {
+      dispatch(loginAction(user));
+    }
+    dispatch(authReady());
+  });
+
+  return <>{isAuthReady && <RouterProvider router={routes} />}</>;
 }
-
-export default App
+export default App;
